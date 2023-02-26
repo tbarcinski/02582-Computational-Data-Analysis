@@ -1,2 +1,2 @@
 1. KNNImputer (should be based on test data too)
-2. 
+2. RMSE should be calculated on data that is transformed back to the original domain ie. we need a post processor
