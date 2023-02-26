@@ -37,13 +37,13 @@ def fit_standardizer_X(X, X_new) -> StandardScaler:
     
     combined = np.concatenate((X, X_new), axis=0)
     
-    standardizer = StandardScaler()
+    standardizer = StandardScaler(with_std=True, with_mean=True)
     standardizer.fit(combined)
     
     return standardizer
 
 def fit_standardizer_y(y):
-    standardizer = StandardScaler()
+    standardizer = StandardScaler(with_std=False, with_mean=True)
     standardizer.fit(y[:, np.newaxis])
     return standardizer
 
@@ -64,6 +64,12 @@ def preprocess_X(df, standardizer, encoder):
     combined = np.concatenate((X_standard, C_onehot), axis=1)
 
     return combined
+
+def postprocess_y(y, standardizer):
+    y_orig = standardizer.inverse_transform([y])
+    return y_orig[0]
+
+
 
 
 if __name__ == "__main__":
