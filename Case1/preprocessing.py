@@ -4,6 +4,11 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 import numpy as np
 import pandas as pd
 
+df = pd.read_csv("case1Data.txt", sep=', ')
+df.columns = [c.replace(' ', '') for c in df.columns]
+CATEGORICAL = [c for c in df.columns if c.startswith("C")]
+CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
+
 def replace_missing_continouous(X: np.array):
     imputer = SimpleImputer(strategy='mean')
     X = imputer.fit_transform(X)
@@ -63,12 +68,7 @@ def preprocess_X(df, standardizer, encoder):
 
 if __name__ == "__main__":
     print("preprocessing example")
-    df = pd.read_csv("case1Data.txt", sep=', ')
-    df.columns = [c.replace(' ', '') for c in df.columns]
 
-
-    CATEGORICAL = [c for c in df.columns if c.startswith("C")]
-    CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
     # If it's understood as categorical pd.get_dummies work sensibily TOASK: should we use all overall categories or only the one in a feature
     df[CATEGORICAL].astype(pd.CategoricalDtype(categories=set(df[CATEGORICAL].stack())))
