@@ -5,3 +5,4 @@
     features is the same as the distribution of test data
 4. TOASK: 
     1) should we use all overall categories or only the one in a featur
+5. best lambda according to one-std error rule
