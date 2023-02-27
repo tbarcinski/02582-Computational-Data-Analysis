@@ -1,22 +1,38 @@
-
-from sklearn.impute import SimpleImputer
+# %%
+from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 import numpy as np
 import pandas as pd
 
+# %%
 df = pd.read_csv("case1Data.txt", sep=', ')
 df.columns = [c.replace(' ', '') for c in df.columns]
 CATEGORICAL = [c for c in df.columns if c.startswith("C")]
 CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
-def replace_missing_continouous(X: np.array):
-    imputer = SimpleImputer(strategy='mean')
-    X = imputer.fit_transform(X)
+def replace_missing_continouous(X: np.array, strategy: str):
+    if strategy == "mean":
+        imputer = SimpleImputer(strategy='mean', add_indicator=True)
+        X = imputer.fit_transform(X)
+    elif strategy == "KNN":
+        imputer = KNNImputer(missing_values=np.nan, weights = "distance",
+                             add_indicator=True)
+        X = imputer.fit_transform(X)
+    else:
+        raise Exception("you dummy")
     return X
     
-def replace_missing_categorical(C: np.array) -> np.array:
-    imputer = SimpleImputer(strategy='most_frequent')
-    C = imputer.fit_transform(C)
+def replace_missing_categorical(C: np.array, strategy: str) -> np.array:
+    if strategy == "most_frequent":
+        imputer = SimpleImputer(strategy='most_frequent',
+                                add_indicator=True)
+        C = imputer.fit_transform(C)
+    elif strategy == "new_class":
+        imputer = SimpleImputer(strategy='constant', fill_value='missing',
+                             add_indicator=True)
+        C = imputer.fit_transform(C)
+    else:
+        raise Exception("you dummy")
     return C
 
 def fit_encoder(C, C_new, categories='auto'):
@@ -26,7 +42,8 @@ def fit_encoder(C, C_new, categories='auto'):
     combined = np.concatenate((C, C_new), axis=0)
     combined = replace_missing_categorical(combined)
     
-    # sparse=False to avoid sparse matrix because todense becomes "matrix" wich is deprecated with some sklearn models
+    # sparse=False to avoid sparse matrix because todense becomes "matrix" wich
+    # is deprecated with some sklearn models
     enc = OneHotEncoder(categories=categories, sparse=False) 
     enc.fit(C)
     return enc
@@ -36,7 +53,6 @@ def fit_standardizer_X(X, X_new) -> StandardScaler:
     # so the bias from that doesn't affect normalization
     
     combined = np.concatenate((X, X_new), axis=0)
-    
     standardizer = StandardScaler(with_std=True, with_mean=True)
     standardizer.fit(combined)
     
@@ -59,8 +75,8 @@ def preprocess_X(df, standardizer, encoder):
     X_standard = standardizer.transform(X_nonan)
 
     C_nonan = replace_missing_categorical(C)
-    C_onehot = encoder.transform(C_nonan) # TOASK: any advantage in standardizing this?
-
+    C_onehot = encoder.transform(C_nonan)
+    # TOASK: any advantage in standardizing this?
     combined = np.concatenate((X_standard, C_onehot), axis=1)
 
     return combined
@@ -76,7 +92,7 @@ if __name__ == "__main__":
     print("preprocessing example")
 
 
-    # If it's understood as categorical pd.get_dummies work sensibily TOASK: should we use all overall categories or only the one in a feature
+    # If it's understood as categorical pd.get_dummies work sensibily 
     df[CATEGORICAL].astype(pd.CategoricalDtype(categories=set(df[CATEGORICAL].stack())))
 
     df_new = pd.read_csv("case1Data_Xnew.txt", sep=', ') # for competition, without y

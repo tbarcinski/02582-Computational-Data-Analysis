@@ -1,2 +1,7 @@
 1. KNNImputer (should be based on test data too)
-2. RMSE should be calculated on data that is transformed back to the original domain ie. we need a post processor
+2. PCA, PCR
+3. Ambitious stuff
+    1) Check that the distribution of the training
+    features is the same as the distribution of test data
+4. TOASK: 
+    1) should we use all overall categories or only the one in a featur
