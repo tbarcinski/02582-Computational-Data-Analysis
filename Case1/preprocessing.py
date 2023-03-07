@@ -10,26 +10,23 @@ df.columns = [c.replace(' ', '') for c in df.columns]
 CATEGORICAL = [c for c in df.columns if c.startswith("C")]
 CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
-def replace_missing_continouous(X: np.array, strategy: str):
+def replace_missing_continouous(X: np.array, strategy = 'mean'):
     if strategy == "mean":
-        imputer = SimpleImputer(strategy='mean', add_indicator=True)
+        imputer = SimpleImputer(strategy='mean')
         X = imputer.fit_transform(X)
     elif strategy == "KNN":
-        imputer = KNNImputer(missing_values=np.nan, weights = "distance",
-                             add_indicator=True)
+        imputer = KNNImputer(missing_values=np.nan, weights = "distance")
         X = imputer.fit_transform(X)
     else:
         raise Exception("you dummy")
     return X
     
-def replace_missing_categorical(C: np.array, strategy: str) -> np.array:
+def replace_missing_categorical(C: np.array, strategy = 'most_frequent') -> np.array:
     if strategy == "most_frequent":
-        imputer = SimpleImputer(strategy='most_frequent',
-                                add_indicator=True)
+        imputer = SimpleImputer(strategy='most_frequent')
         C = imputer.fit_transform(C)
     elif strategy == "new_class":
-        imputer = SimpleImputer(strategy='constant', fill_value='missing',
-                             add_indicator=True)
+        imputer = SimpleImputer(strategy='constant', fill_value='missing')
         C = imputer.fit_transform(C)
     else:
         raise Exception("you dummy")
@@ -68,6 +65,7 @@ def preprocess_y(df, standardizer):
     return y_standard.flatten()
 
 def preprocess_X(df, standardizer, encoder):
+    
     X = df[CONTINUOUS].values
     C = df[CATEGORICAL].values
     
@@ -78,7 +76,6 @@ def preprocess_X(df, standardizer, encoder):
     C_onehot = encoder.transform(C_nonan)
     # TOASK: any advantage in standardizing this?
     combined = np.concatenate((X_standard, C_onehot), axis=1)
-
     return combined
 
 def postprocess_y(y, standardizer):
