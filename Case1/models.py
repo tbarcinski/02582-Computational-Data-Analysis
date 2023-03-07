@@ -116,9 +116,11 @@ for i in range(K):
 
 import pickle
 import datetime as dt
+import time
 
 # ... versioning, huh?
-results = open(f"results/results_rmse_{dt.datetime.now()}.pickle", "wb") 
+time_now = dt.datetime.now()
+results = open(f"results/results_rmse_{time.mktime(time_now.timetuple())}.pickle", "wb") 
 pickle.dump(RMSE, results)
 
 
