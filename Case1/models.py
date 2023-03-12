@@ -12,6 +12,9 @@ from statsmodels.regression.linear_model import OLS
 from sklearn.model_selection import KFold
 from sklearn.ensemble import RandomForestRegressor, BaggingRegressor, AdaBoostClassifier
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import ElasticNet
+
+import warnings
 
 from preprocessing import *
 
@@ -44,26 +47,25 @@ ols          = LinearRegression(fit_intercept=False) # no intercept, as we cente
 knn          = KNeighborsRegressor(p=2, weights='uniform') # p=2 uses eucledian distance
 knn_weighted = KNeighborsRegressor(p=2, weights='distance') # p=2 uses eucledian distance
 ridge        = Ridge(fit_intercept=False) # alpha defined later
-lasso        = LassoLars( fit_intercept=False, normalize=False) # alpha defined later
-Adaboost_tree = 
+lasso        = LassoLars(fit_intercept=False, normalize=False) # alpha defined later
+elastic_net  = ElasticNet(fit_intercept=False, normalize=False) # alpha and l1 ratio defined later
 Adaboost_knn = AdaBoostClassifier(KNeighborsRegressor(p=2, weights='distance'))
-RandomForest = 
 
 # -------------------All the things to save----------------------
 num_ridge_lasso_lambdas = 100
 ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+num_elasticnet_alphas = 5
+elastic_net_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
 highest_knn_k = 10
-
-, learning_rate=1.0
 
 
 RMSE = {'OLS'  : np.zeros(K),
         'Ridge': np.zeros((K, num_ridge_lasso_lambdas)),
-        'KNN': np.zeros(K),# Anna
-        'Weighted KNN': np.zeros(K), # Anna
-        'Lasso': np.zeros((K, num_ridge_lasso_lambdas)), # Tymek,
-        'Elastic Net': None, # Tymek
+        'KNN': np.zeros(K),
+        'Weighted KNN': np.zeros(K),
+        'Lasso': np.zeros((K, num_ridge_lasso_lambdas)),
+        'Elastic Net': np.zeros((K, num_ridge_lasso_lambdas, num_elasticnet_alphas)), 
        } # This could be a class
 
 # ------------------Pipeline preprocess ---------------------------------
@@ -94,6 +96,7 @@ clf = Pipeline(steps=[("preprocessor", preprocessor)])
 kf = KFold(n_splits=K)
 
 for i, (train_index, validation_index) in enumerate(kf.split(df)):
+    print(f"Fold: {i}")
     # split
     df_train = df.iloc[train_index]
     df_validation = df.loc[validation_index]
@@ -113,7 +116,7 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
     y_pred = ols.predict(X_validation)
     RMSE['OLS'][i] = mean_squared_error(y_validation, y_pred, squared=False)
     
-    for k in range(highest_knn_k):
+    for k in range(1, highest_knn_k):
         # -----------KNN---------------
         knn.set_params(n_neighbors = k)
         knn.fit(X_train, y_train)
@@ -126,41 +129,29 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
         y_pred = knn_weighted.predict(X_validation)
         RMSE['Weighted KNN'][i] = mean_squared_error(y_validation, y_pred, squared=False)
 
-    #------ RIDGE-----------------------
+    
     for j in range(num_ridge_lasso_lambdas):
-        
+        #------ RIDGE-----------------------        
         ridge.set_params(alpha=ridge_lambdas[j])
         ridge.fit(X_train, y_train)
         y_pred = ridge.predict(X_validation)
         RMSE['Ridge'][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
         
+        #--------LASSO-----------------------
         lasso.set_params(alpha= lasso_lambdas[j])
         lasso.fit(X_train, y_train)
         y_pred = lasso.predict(X_validation)
         RMSE['Lasso'][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
-    
-    for i in max_depth:
-        for j in learning
-    # Create and fit an AdaBoosted decision tree
+        
+        #-----------ElasticNet----------------
+        for j2 in range(num_elasticnet_alphas):
+            elastic_net.set_params(alpha=ridge_lambdas[j], l1_ratio = elastic_net_alphas[j2])
+            with warnings.catch_warnings(): # convergence warnings
+                warnings.simplefilter("ignore")
+                elastic_net.fit(X_train, y_train)
+            y_pred = elastic_net.predict(X_validation)
+            RMSE['Elastic Net'][i, j, j2] = mean_squared_error(y_validation, y_pred, squared=False)
 
-    pipeline_testing = Pipeline(
-        steps=[
-                ("preprocessor", preprocessor),
-                ("regressor", boost)
-            ]
-        )
-
-    param_grid = {
-        'n_estimators': n_estimators
-    }
-    boost_grid = GridSearchCV(estimator = pipeline_testing, param_grid = param_grid,
-                              cv = 5, verbose=2, n_jobs=-1)
-
-    # Fit the grid search model
-    boost_grid.fit(X, y)
-
-    test_acc[:,i-1] = boost_grid.cv_results_['mean_test_score']
-    
 # --------------------------- Save results for analysis --------------------------
 # Todo: bootstrap for evaluation with perfect lambdas
 
