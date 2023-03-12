@@ -18,6 +18,9 @@ import warnings
 
 from preprocessing import *
 
+from h2o import H2OFrame
+from h2o.estimators import H2OGradientBoostingEstimator
+
 # ----------------- Read data-------------------------------
 
 df = pd.read_csv("case1Data.txt", sep=', ', engine='python')
@@ -75,11 +78,15 @@ numeric_transformer = Pipeline(
         ("scaler", StandardScaler(with_std=True, with_mean=True))
     ]
 )
-# creating new class
 categorical_transformer = Pipeline(
     steps=[
         ("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
         ("encoder", OneHotEncoder(handle_unknown="ignore")),
+    ]
+)
+categorical_transformer_trees = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
     ]
 )
 preprocessor = ColumnTransformer(
@@ -88,8 +95,14 @@ preprocessor = ColumnTransformer(
         ("cat", categorical_transformer, CATEGORICAL),
     ]
 )
-
+preprocessor_trees = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, CONTINUOUS),
+        ("cat", categorical_transformer_trees, CATEGORICAL),
+    ]
+)
 clf = Pipeline(steps=[("preprocessor", preprocessor)])
+clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 
 # %%
 # -------------------- Train and find params---------------------------
@@ -108,9 +121,12 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
     y_train = df_train.y.values
     y_validation = df_validation.y.values
 
+    X_train_trees = clf_trees.fit_transform(X_train)
+    X_validation_trees = clf.transform(X_validation)
+
     X_train = clf.fit_transform(X_train)
     X_validation = clf.transform(X_validation) # note lack of fit
-    
+
     # ----------OLS--------------
     ols.fit(X_train, y_train)
     y_pred = ols.predict(X_validation)
@@ -151,6 +167,24 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
                 elastic_net.fit(X_train, y_train)
             y_pred = elastic_net.predict(X_validation)
             RMSE['Elastic Net'][i, j, j2] = mean_squared_error(y_validation, y_pred, squared=False)
+
+    #-----------Tree based methods ----------------
+    #-----------GradientBoostingTree----------------
+
+    # H2O definition stuff
+    df_h2o = H2OFrame(pd.DataFrame(X_train_trees, columns=X_train_trees.columns))
+    df_h2o['y'] = y_train
+    df_h2o_validation = H2OFrame(pd.DataFrame(X_validation_trees,
+                                              columns=X_validation_trees.columns))
+    df_h2o_validation['y'] = y_test
+
+    for max_depth in ___:
+        for number_trees in ____:
+            gbm = H2OGradientBoostingEstimator(ntrees = number_trees, max_depth = max_depth)
+            gbm.train(x = [column for column in df_h2o.columns if column != "y"], y = "y",
+               training_frame = df_h2o)
+            y_pred = gbm.predict(df_h2o_validation)
+            var_importance = gbm.varimp(use_pandas=True).to_numpy()
 
 # --------------------------- Save results for analysis --------------------------
 # Todo: bootstrap for evaluation with perfect lambdas
