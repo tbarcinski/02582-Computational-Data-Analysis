@@ -8,11 +8,11 @@ from sklearn.linear_model import LinearRegression, Ridge, LassoLars # Lasso take
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import ColumnTransformer
-from statsmodels.regression.linear_model import OLS
 from sklearn.model_selection import KFold
 from sklearn.ensemble import RandomForestRegressor, BaggingRegressor, AdaBoostClassifier
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import ElasticNet
+from sklearn.svm import SVR
 
 import warnings
 
@@ -59,17 +59,32 @@ num_ridge_lasso_lambdas = 100
 ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 num_elasticnet_alphas = 5
-elastic_net_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
+elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
+elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+
 highest_knn_k = 10
+knn_ks = np.arange(1, highest_knn_k)
+highest_knn_k -1
 
-
-RMSE = {'OLS'  : np.zeros(K),
-        'Ridge': np.zeros((K, num_ridge_lasso_lambdas)),
-        'KNN': np.zeros(K),
-        'Weighted KNN': np.zeros(K),
-        'Lasso': np.zeros((K, num_ridge_lasso_lambdas)),
-        'Elastic Net': np.zeros((K, num_ridge_lasso_lambdas, num_elasticnet_alphas)), 
-       } # This could be a class
+Results = {'OLS': 
+               {'RMSE': np.zeros(K)},
+           'Ridge':
+               {'lambdas': ridge_lambdas, 
+                'RMSE': np.zeros((K, num_ridge_lasso_lambdas))},
+           'KNN': 
+               {'ks': knn_ks,
+                'RMSE': np.zeros((K, highest_knn_k-1))},
+           'Weighted KNN':
+               {'ks': knn_ks, 
+                'RMSE':np.zeros((K, highest_knn_k-1))},
+           'Lasso': 
+               {'lambdas': lasso_lambdas, 
+                'RMSE': np.zeros((K, num_ridge_lasso_lambdas))},
+           'Elastic Net': 
+               {'lambdas': elasticnet_lambdas,
+                'alphas': elasticnet_alphas, 
+                'RMSE': np.zeros((K, num_ridge_lasso_lambdas, num_elasticnet_alphas))},
+           } # This could be a class
 
 # ------------------Pipeline preprocess ---------------------------------
 numeric_transformer = Pipeline(
@@ -130,20 +145,20 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
     # ----------OLS--------------
     ols.fit(X_train, y_train)
     y_pred = ols.predict(X_validation)
-    RMSE['OLS'][i] = mean_squared_error(y_validation, y_pred, squared=False)
+    Results['OLS']["RMSE"][i] = mean_squared_error(y_validation, y_pred, squared=False)
     
-    for k in range(1, highest_knn_k):
+    for k in knn_ks:
         # -----------KNN---------------
         knn.set_params(n_neighbors = k)
         knn.fit(X_train, y_train)
         y_pred = knn.predict(X_validation)
-        RMSE['KNN'][i] = mean_squared_error(y_validation, y_pred, squared=False)
+        Results['KNN']["RMSE"][i, k-1] = mean_squared_error(y_validation, y_pred, squared=False)
         
         # -----------Weighted KNN---------------
         knn_weighted.set_params(n_neighbors = k)
         knn_weighted.fit(X_train, y_train)
         y_pred = knn_weighted.predict(X_validation)
-        RMSE['Weighted KNN'][i] = mean_squared_error(y_validation, y_pred, squared=False)
+        Results['Weighted KNN']["RMSE"][i, k-1] = mean_squared_error(y_validation, y_pred, squared=False)
 
     
     for j in range(num_ridge_lasso_lambdas):
@@ -151,22 +166,22 @@ for i, (train_index, validation_index) in enumerate(kf.split(df)):
         ridge.set_params(alpha=ridge_lambdas[j])
         ridge.fit(X_train, y_train)
         y_pred = ridge.predict(X_validation)
-        RMSE['Ridge'][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
+        Results['Ridge']["RMSE"][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
         
         #--------LASSO-----------------------
         lasso.set_params(alpha= lasso_lambdas[j])
         lasso.fit(X_train, y_train)
         y_pred = lasso.predict(X_validation)
-        RMSE['Lasso'][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
+        Results['Lasso']["RMSE"][i, j] = mean_squared_error(y_validation, y_pred, squared=False)
         
         #-----------ElasticNet----------------
         for j2 in range(num_elasticnet_alphas):
-            elastic_net.set_params(alpha=ridge_lambdas[j], l1_ratio = elastic_net_alphas[j2])
+            elastic_net.set_params(alpha=elasticnet_lambdas[j], l1_ratio = elasticnet_alphas[j2])
             with warnings.catch_warnings(): # convergence warnings
                 warnings.simplefilter("ignore")
                 elastic_net.fit(X_train, y_train)
             y_pred = elastic_net.predict(X_validation)
-            RMSE['Elastic Net'][i, j, j2] = mean_squared_error(y_validation, y_pred, squared=False)
+            Results['Elastic Net']["RMSE"][i, j, j2] = mean_squared_error(y_validation, y_pred, squared=False)
 
     #-----------Tree based methods ----------------
     #-----------GradientBoostingTree----------------
@@ -196,8 +211,8 @@ import time
 
 # ... versioning, huh?
 time_now = dt.datetime.now()
-results = open(f"results/results_rmse_{time.mktime(time_now.timetuple())}.pickle", "wb") 
-pickle.dump(RMSE, results)
+results_file = open(f"results/results_rmse_{time.mktime(time_now.timetuple())}.pickle", "wb") 
+pickle.dump(Results, results_file)
 
 
 
