@@ -213,8 +213,9 @@ print(rf_grid.best_estimator_)
 # %%
 from h2o.tree import H2OTree
 from h2o import H2OFrame
-from h2o.estimators import H2OGradientBoostingEstimator
+from h2o.estimators import H2OGradientBoostingEstimator, H2ORandomForestEstimator
 
+# %%
 CATEGORICAL = [c for c in df.columns if c.startswith("C")]
 CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
@@ -246,15 +247,65 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 X_train = clf_trees.fit_transform(X_train)
 X_test = clf_trees.transform(X_test) # note lack of fit
 
-df_trees = df.iloc[:, df.columns != "y"]
-df_trees[column for column in df_trees.columns if column != "y"] = X_train
+df_trees = pd.DataFrame(X_train, columns=X.columns)
 df_trees['y'] = y_train
 
-gbm = H2OGradientBoostingEstimator(ntrees=1)
-gbm.train(x=[column for column in df_trees.columns if column != "y"],
-          y='y', training_frame = H2OFrame(df_trees))
-# Obtaining a tree is a matter of a single call
-tree = H2OTree(model = gbm, tree_number = 0 , tree_class = "NO")
+df_trees_test = pd.DataFrame(X_test, columns=X.columns)
+df_trees_test['y'] = y_test
+
+# gbm = H2OGradientBoostingEstimator(ntrees=1)
+# gbm.train(x=[column for column in df_trees.columns if column != "y"],
+#           y='y', training_frame = H2OFrame(df_trees))
+# # Obtaining a tree is a matter of a single call
+# tree = H2OTree(model = gbm, tree_number = 0 , tree_class = "NO")
 # tree.model_id
 # tree.tree_number
 # tree.tree_class
+
+
+# %%
+
+
+# %%
+df_h2o = H2OFrame(df_trees)
+df_h2o_test = H2OFrame(df_trees_test)
+
+noise_names = ["noise_" + str(i) for i in range(noise_features_number)]
+gbm = H2OGradientBoostingEstimator(ntrees = 10, max_depth = 7)
+gbm.train(x = [column for column in df_h2o.columns if column != "y"], y = "y",
+               training_frame = df_h2o,
+               validation_frame = df_h2o_test)
+var_importance = gbm.varimp(use_pandas=True)
+var_importance[var_importance["variable"].isin(noise_names)]
+scoring_history = gbm.score_history().loc[:, "training_rmse"].to_numpy()
+
+
+# %%
+# gbm_test_2 = H2OGradientBoostingEstimator(ntrees = 10, max_depth = 5)
+# tree = H2OTree(model = gbm_test_2, tree_number = 1 , tree_class = "NO")
+
+# %%
+
+y_pred = gbm.predict(df_h2o_test)
+rmse_testing = mean_squared_error(y_test, y_pred.as_data_frame().to_numpy().squeeze(), squared=False)
+
+# %%
+rf = H2ORandomForestEstimator(balance_classes=True, seed=1234)
+rf.train(x = [column for column in df_h2o.columns if column != "y"], y = "y",
+               training_frame = df_h2o,
+               validation_frame = df_h2o_test)
+y_pred = rf.predict(df_h2o_test)
+# %%
+rmse_testing = mean_squared_error(y_test, y_pred.as_data_frame().to_numpy().squeeze(), squared=False)
+
+
+
+
+# # %%
+# test_gbm = H2OGradientBoostingEstimator()
+
+# # %%
+# from h2o.estimators import H2OGradientBoostingEstimator
+# airlines_gbm_model = H2OGradientBoostingEstimator(ntrees = 10, max_depth = 5)
+# airlines_gbm_model.train(x = ["Origin"], y = "Distance", training_frame = airlines_data)
+# # tree = H2OTree(model = airlines_gbm_model, tree_number = 0, tree_class = None)
