@@ -42,7 +42,7 @@ df.head()
 # ------------------Constants ---------------------------------
 
 N = len(df) # Total number of observations in "case1Data.txt"
-K = 2 # For K-fold cross validation
+K = 5 # For K-fold cross validation
 
 # -------------------Define models -------------------------------
 ols          = LinearRegression(fit_intercept=False) # no intercept, as we center the data
@@ -57,36 +57,38 @@ Adaboost_trees = AdaBoostRegressor(DecisionTreeRegressor())
 rf           = H2ORandomForestEstimator(balance_classes=True, seed=1234) #note, it's distributed
 
 # -------------------All the things to save----------------------
-# num_ridge_lasso_lambdas = 100
-# ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
-# lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
-# num_elasticnet_alphas = 5
-# elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
-# elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+num_ridge_lasso_lambdas = 100
+ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+num_elasticnet_alphas = 5
+elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
+elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 
-# highest_knn_k = 10
-# knn_ks = np.arange(1, highest_knn_k)
-# highest_knn_k -1
+highest_knn_k = 10
+knn_ks = np.arange(1, highest_knn_k)
+highest_knn_k -1
 
-# max_depth_GradientBoost = range(5, 40, 5)
-# number_trees_GradientBoost = range(3, 9, 1)
-# learning_rate_GradientBoost = range(0.1, 0.5, 0.1)
-# noise_features_number = 5
-# noise_variance = 0.5
+max_depth_GradientBoost = np.arange(2, 6, 1)
+number_trees_GradientBoost = np.arange(5, 50, 3)
+learning_rate_GradientBoost = np.array([0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3])
 
-# ntrees = 70
-# max_depth = 30
-# max_depth_rf = range(30, ntrees, 5)
-# number_trees_rf = range(10, max_depth, 3)
+noise_features_number = 5
+noise_variance = 0.5
+
+ntrees = 200
+max_depth = 30
+max_depth_rf = np.arange(10, max_depth, 5)
+number_trees_rf = np.arange(10, ntrees, 10)
 
 # #### AdaBoost 
-# n_estimators = range(10, 50, 5)
-# learning_rate_adaboost = range(0.1, 0.5, 0.1)
-# knn_ks_adaboost = range(10, 30, 3)
-# max_depth_adaboost = range(1,11)
+n_estimators = np.arange(10, 50, 5)
+learning_rate_adaboost = np.arange(0.01, 0.3, 0.01)
+knn_ks_adaboost = np.arange(10, 30, 3)
+max_depth_adaboost = np.arange(2,11)
 
 
 #### TESTING ####################
+"""
 num_ridge_lasso_lambdas = 2
 ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
@@ -114,6 +116,7 @@ n_estimators = range(3, 4, 1)
 learning_rate_adaboost = np.arange(0.1, 0.3, 0.1)
 knn_ks_adaboost = range(5, 6, 1)
 max_depth_adaboost = range(2,3)
+"""
 
 Results = {
     'OLS': 
@@ -311,11 +314,11 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
             rf.set_params(ntrees = number_trees, max_depth = max_depth)
             rf.train(x = columns_h2o, y = "y",
                 training_frame = df_h2o, validation_frame = df_h2o_validation)
-        
-            y_pred = gbm.predict(df_h2o_validation).as_data_frame().to_numpy().squeeze()
-            Results['Random_Forest']["RMSE"][fold_index, max_depth_index, number_trees_index] = \
-                mean_squared_error(y_validation, y_pred, squared=False)
             
+            y_pred = rf.predict(df_h2o_validation).as_data_frame().to_numpy().squeeze()
+            rmse = mean_squared_error(y_validation, y_pred, squared=False)
+            Results['Random_Forest']["RMSE"][fold_index, max_depth_index, number_trees_index] = rmse
+         
     #-----------AdaBoost_KNN---------------- 
     for ks_index in range(len(Results["Adaboost_knn"]["ks"])):
         for n_estimators_index in range(len(Results["Adaboost_knn"]["n_estimators"])):
@@ -326,13 +329,14 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
                 learning_rate = Results["Adaboost_knn"]["learning_rate"][learning_rate_index]
 
                 Adaboost_knn.set_params(learning_rate=learning_rate, n_estimators = n_estimators)
-                Adaboost_knn.estimator.set_params(n_neighbors = ks)
+                Adaboost_knn.base_estimator.set_params(n_neighbors = ks)
                 Adaboost_knn.fit(X_train, y_train)
                 y_pred = Adaboost_knn.predict(X_validation)
                 Results['Adaboost_knn']["RMSE"][fold_index, ks_index, n_estimators_index, learning_rate_index] =\
                     mean_squared_error(y_validation, y_pred, squared=False)
 
     #-----------AdaBoost_Trees---------------- 
+    print("Adaboost_trees")
     for max_depth_index in range(len(Results["Adaboost_trees"]["max_depth"])):
         for number_trees_index in range(len(Results["Adaboost_trees"]["number_trees"])):
             for learning_rate_index in range(len(Results["Adaboost_trees"]["learning_rate"])):
@@ -342,7 +346,7 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
                 learning_rate = Results["Adaboost_trees"]["learning_rate"][learning_rate_index]
 
                 Adaboost_trees.set_params(learning_rate=learning_rate, n_estimators = n_estimators)
-                Adaboost_trees.estimator.set_params(max_depth = max_depth)
+                Adaboost_trees.base_estimator.set_params(max_depth = max_depth)
 
                 Adaboost_trees.fit(X_train, y_train)
                 y_pred = Adaboost_trees.predict(X_validation)
