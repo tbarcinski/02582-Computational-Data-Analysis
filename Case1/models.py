@@ -165,41 +165,7 @@ Results = {
 
 # ------------------Pipeline preprocess ---------------------------------
 
-numeric_transformer = Pipeline(
-    steps=[
-        #("imputer", SimpleImputer(strategy="median")),
-        ("imputer", KNNImputer()),
-        ("scaler", StandardScaler(with_std=True, with_mean=True)),
-        ("feature_extration", PolynomialFeatures(degree=2))
-    ]
-)
-categorical_transformer = Pipeline(
-    steps=[
-        #("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
-        ("imputer", SimpleImputer(strategy='most_frequent')),
-        ("encoder", OneHotEncoder(handle_unknown="ignore")),
-    ]
-)
-categorical_transformer_trees = Pipeline(
-    steps=[
-        #("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
-        ("imputer", SimpleImputer(strategy='constant')),
-    ]
-)
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, CONTINUOUS),
-        ("cat", categorical_transformer, CATEGORICAL),
-    ]
-)
-preprocessor_trees = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, CONTINUOUS),
-        ("cat", categorical_transformer_trees, CATEGORICAL),
-    ]
-)
-clf = Pipeline(steps=[("preprocessor", preprocessor)])
-clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
+
 
 # -------------------- Train and find params---------------------------
 kf = KFold(n_splits=K, random_state=42, shuffle=True)
