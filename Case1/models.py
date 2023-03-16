@@ -22,7 +22,7 @@ from h2o.estimators import H2OGradientBoostingEstimator, H2ORandomForestEstimato
 import h2o
 
 
-test = True
+test = False
 # ----------------- Read data-------------------------------
 
 df = pd.read_csv("case1Data.txt", sep=', ', engine='python')
@@ -65,8 +65,8 @@ if not test:
     num_ridge_lasso_lambdas = 100
     ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
     lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
-    num_elasticnet_alphas = 5
-    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
+    num_elasticnet_alphas = 10
+    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, end=False)
     elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 
     highest_knn_k = 10
@@ -95,7 +95,7 @@ else:
     ridge_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
     lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
     num_elasticnet_alphas = 2
-    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas)
+    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, end=False)
     elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 
     highest_knn_k = 2
@@ -121,14 +121,14 @@ else:
 
 
 Results = {
-    'OLS': 
-        {'RMSE': np.zeros(K)},
+    #'OLS': 
+    #    {'RMSE': np.zeros(K)},
     'Ridge':
         {'lambdas': ridge_lambdas, 
         'RMSE': np.zeros((K, num_ridge_lasso_lambdas))},
-    'KNN': 
-        {'ks': knn_ks,
-        'RMSE': np.zeros((K, highest_knn_k-1))},
+    #'KNN': 
+    #    {'ks': knn_ks,
+    #    'RMSE': np.zeros((K, highest_knn_k-1))},
     'Weighted_KNN':
         {'ks': knn_ks, 
         'RMSE':np.zeros((K, highest_knn_k-1))},
@@ -139,6 +139,7 @@ Results = {
         {'lambdas': elasticnet_lambdas,
         'alphas': elasticnet_alphas, 
         'RMSE': np.zeros((K, num_ridge_lasso_lambdas, num_elasticnet_alphas))},
+    
     'Gradient_Boosting_Tree': 
         {'max_depth': max_depth_GradientBoost,
         'number_trees': number_trees_GradientBoost, 
@@ -149,12 +150,14 @@ Results = {
         {'max_depth': max_depth_rf,
         'number_trees': number_trees_rf, 
         'RMSE': np.zeros((K, len(max_depth_rf), len(number_trees_rf)))},
-    'Adaboost_knn': 
-        {'ks': knn_ks_adaboost,
-        'n_estimators': n_estimators, 
-        'learning_rate': learning_rate_adaboost,
-        'RMSE': np.zeros((K, len(knn_ks_adaboost), len(n_estimators),
-                            len(learning_rate_adaboost)))},
+    
+    #'Adaboost_knn': 
+    #    {'ks': knn_ks_adaboost,
+    #    'n_estimators': n_estimators, 
+    #    'learning_rate': learning_rate_adaboost,
+    #    'RMSE': np.zeros((K, len(knn_ks_adaboost), len(n_estimators),
+    #                        len(learning_rate_adaboost)))},
+    
     'Adaboost_trees': 
        {'max_depth': max_depth_adaboost,
         'number_trees': n_estimators, 
@@ -191,16 +194,16 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
     X_validation = clf.transform(X_validation) # note lack of fit
 
     # ----------OLS--------------
-    ols.fit(X_train, y_train)
-    y_pred = ols.predict(X_validation)
-    Results['OLS']["RMSE"][fold_index] = mean_squared_error(y_validation, y_pred, squared=False)
+    #ols.fit(X_train, y_train)
+    #y_pred = ols.predict(X_validation)
+    #Results['OLS']["RMSE"][fold_index] = mean_squared_error(y_validation, y_pred, squared=False)
     
     for k in knn_ks:
         # -----------KNN---------------
-        knn.set_params(n_neighbors = k)
-        knn.fit(X_train, y_train)
-        y_pred = knn.predict(X_validation)
-        Results['KNN']["RMSE"][fold_index, k-1] = mean_squared_error(y_validation, y_pred, squared=False)
+        #knn.set_params(n_neighbors = k)
+        #knn.fit(X_train, y_train)
+        #y_pred = knn.predict(X_validation)
+        #Results['KNN']["RMSE"][fold_index, k-1] = mean_squared_error(y_validation, y_pred, squared=False)
         
         # -----------Weighted KNN---------------
         knn_weighted.set_params(n_neighbors = k)
