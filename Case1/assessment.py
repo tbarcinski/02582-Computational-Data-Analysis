@@ -1,50 +1,105 @@
-import pickle
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import warnings
+from sklearn.metrics import mean_squared_error # call it with squared=False to get RMSE
+from sklearn.linear_model import ElasticNetCV
+from sklearn.model_selection import KFold
+from preprocessing import *
 
-def get_results(results_file):
-    file = open(f"results/{results_file}", "rb") 
-    RMSE = pickle.load(file)
-    return RMSE
+test = False
+
+# ----------------- Read data-------------------------------
+
+df = pd.read_csv("case1Data.txt", sep=', ', engine='python')
+df.columns = [c.replace(' ', '') for c in df.columns]
 
 
-def plot_cross_val(RMSE, show=True, save=True, save_file="cross_validation.png"):
-    
-    # TODO: this should be able to handle any of our models in RMSE
-    K = len(RMSE['OLS'])
-    
-    plt.bar(np.arange(K)-0.4, RMSE['OLS'], label='OLS', width=0.2)
+CATEGORICAL = [c for c in df.columns if c.startswith("C")]
+CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
-    best_lambda_ridge_idx = RMSE['Ridge'].mean(axis=0).argmin()
-    plt.bar(np.arange(K)-0.2, RMSE['Ridge'][:, best_lambda_ridge_idx], label=f'Ridge', width=0.2) #TODO: include best lambda in legend
+# If it's understood as categorical pd.get_dummies work sensibily TOASK: should we use all overall categories or only the one in a feature
+df[CATEGORICAL].astype(pd.CategoricalDtype(categories=set(df[CATEGORICAL].stack())))
 
-    best_lambda_lasso_idx = RMSE['Lasso'].mean(axis=0).argmin()
-    plt.bar(np.arange(K), RMSE['Lasso'][:, best_lambda_lasso_idx], label=f'Lasso', width=0.2) #TODO: include best lambda in legend
+df_new = pd.read_csv("case1Data_Xnew.txt", sep=', ', engine='python') # for competition, without y
+df_new.columns = [c.replace(' ', '') for c in df_new.columns]
 
-    plt.bar(np.arange(K)+0.2, RMSE['KNN'], label=f'KNN', width=0.2)
-    plt.bar(np.arange(K)+0.4, RMSE['Weighted KNN'], label=f'Weighted KNN', width=0.2)
+df_new[CATEGORICAL].astype(pd.CategoricalDtype(categories=set(df_new[CATEGORICAL].stack())))
 
-    plt.xlabel("Folds")
-    plt.xticks(np.arange(K))
-    plt.ylabel("RMSE")
-    plt.legend(loc='lower right')
-    
-    
-    if show:
-        plt.show()
-    if save:
-        plt.savefig(f"figures/{save_file}")
-        
-        
-def main():
-    
-    results_file = "results_rmse_2023-02-27 20:40:59.021065.pickle"
-    RMSE = get_results(results_file)
-    plot_cross_val(RMSE, show=False)
-    
-    
-    
-if __name__ == '__main__':
-    main()
+df.head()
 
+# ------------------Constants ---------------------------------
+
+N = len(df) # Total number of observations in "case1Data.txt"
+K = 5 # For K-fold cross validation
+
+if not test:
+
+    num_elasticnet_alphas = 10
+    num_ridge_lasso_lambdas = 100
+
+    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, endpoint=False)
+    elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+    
+else:
+    num_elasticnet_alphas = 3
+    num_ridge_lasso_lambdas = 5
+
+    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, endpoint=False)
+    elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+
+
+Results = {
+    'Elastic_Net': 
+        {'lambdas': elasticnet_lambdas,
+        'alphas': elasticnet_alphas, 
+        'Result': np.zeros((5, 3))}, # lambda, alpha, rmse (for each fold)
+           }
+
+# ---------------------- Model --------------------------------
+
+elastic_net = ElasticNetCV(l1_ratio = elasticnet_alphas, alphas = elasticnet_lambdas, fit_intercept=False, random_state=6)
+
+
+
+kf = KFold(n_splits=K, random_state=42, shuffle=True)
+
+for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
+    print(f"Fold: {fold_index}")
+    # split
+    df_train = df.iloc[train_index]
+    df_validation = df.loc[validation_index]
+    
+    # prep
+    X_train_initial = df_train.iloc[:, df_train.columns != "y"]
+    X_validation = df_validation.iloc[:, df_validation.columns != "y"]
+    X_new = df_new
+
+    y_train = df_train.y.values
+    y_validation = df_validation.y.values
+    
+    clf.fit(pd.concat((X_train_initial, X_new), axis=0))
+    X_train = clf.transform(X_train_initial)
+    X_validation = clf.transform(X_validation)
+    
+    with warnings.catch_warnings(): # convergence warnings
+        warnings.simplefilter("ignore")
+        elastic_net.fit(X_train, y_train)
+    y_pred = elastic_net.predict(X_validation)
+    rmse = mean_squared_error(y_validation, y_pred, squared=False)
+    Results['Elastic_Net']["Result"][fold_index] = np.array([elastic_net.alpha_, elastic_net.l1_ratio_, rmse])
+    
+    
+    
+# TODO: 
+# 1. add epe calc - save EPE
+# 2. add bootstrap + get epe - save EPE
+# 3. find lambda* and alpha* by gridsearch (non-nested cv)
+# 4. retrain on all data and save predictions
+
+    
+    
+
+    
+    
+    
