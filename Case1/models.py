@@ -12,6 +12,7 @@ from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import ElasticNet
 from sklearn.svm import SVR
+from sklearn.preprocessing import PolynomialFeatures
 
 import warnings
 from preprocessing import *
@@ -201,7 +202,7 @@ clf = Pipeline(steps=[("preprocessor", preprocessor)])
 clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 
 # -------------------- Train and find params---------------------------
-kf = KFold(n_splits=K, random_state=42)
+kf = KFold(n_splits=K, random_state=42, shuffle=True)
 h2o.init()
 
 for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
@@ -267,10 +268,10 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
     # -----------Tree based methods ----------------
     # H2O definition stuff
 
-    df_h2o = pd.DataFrame(X_train_trees, columns=X_train_initial.columns)
+    df_h2o = pd.DataFrame(X_train_trees, columns= clf_trees.get_feature_names_out())
     df_h2o['y'] = y_train
     df_h2o_validation = pd.DataFrame(X_validation_trees,
-                                              columns=X_train_initial.columns)
+                                              columns= clf_trees.get_feature_names_out())
     df_h2o_validation['y'] = y_validation
 
     # noise_names = ["noise_" + str(i) for i in range(noise_features_number)]
