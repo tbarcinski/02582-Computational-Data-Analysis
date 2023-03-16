@@ -21,7 +21,7 @@ from h2o.estimators import H2OGradientBoostingEstimator, H2ORandomForestEstimato
 import h2o
 
 
-test = False
+test = True
 # ----------------- Read data-------------------------------
 
 df = pd.read_csv("case1Data.txt", sep=', ', engine='python')
@@ -163,21 +163,26 @@ Results = {
            } # This could be a class
 
 # ------------------Pipeline preprocess ---------------------------------
+
 numeric_transformer = Pipeline(
     steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler(with_std=True, with_mean=True))
+        #("imputer", SimpleImputer(strategy="median")),
+        ("imputer", KNNImputer()),
+        ("scaler", StandardScaler(with_std=True, with_mean=True)),
+        ("feature_extration", PolynomialFeatures(degree=2))
     ]
 )
 categorical_transformer = Pipeline(
     steps=[
-        ("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
+        #("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
+        ("imputer", SimpleImputer(strategy='most_frequent')),
         ("encoder", OneHotEncoder(handle_unknown="ignore")),
     ]
 )
 categorical_transformer_trees = Pipeline(
     steps=[
-        ("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
+        #("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
+        ("imputer", SimpleImputer(strategy='constant')),
     ]
 )
 preprocessor = ColumnTransformer(
@@ -196,7 +201,7 @@ clf = Pipeline(steps=[("preprocessor", preprocessor)])
 clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 
 # -------------------- Train and find params---------------------------
-kf = KFold(n_splits=K)
+kf = KFold(n_splits=K, random_state=42)
 h2o.init()
 
 for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
