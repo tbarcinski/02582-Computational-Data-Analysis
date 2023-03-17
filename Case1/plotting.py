@@ -75,7 +75,7 @@ def plot_cross_val(Results, show=True, save=True, save_file="cross_validation.pn
     
     # TODO: this should be able to handle any of our models in RMSE
     
-    K = len(Results['OLS']['RMSE'])
+    K = Results['Elastic_Net']['RMSE'].shape[0]
     lines = []
     labels = []
     for model_name in Results.keys():
