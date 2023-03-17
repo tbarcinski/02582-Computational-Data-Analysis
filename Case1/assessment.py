@@ -35,30 +35,24 @@ K = 5 # For K-fold cross validation
 
 if not test:
 
-    num_elasticnet_alphas = 10
     num_ridge_lasso_lambdas = 100
-
-    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, endpoint=False)
-    elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+    lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
     
 else:
-    num_elasticnet_alphas = 3
-    num_ridge_lasso_lambdas = 5
-
-    elasticnet_alphas = np.logspace(-4, 0, num_elasticnet_alphas, endpoint=False)
-    elasticnet_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
+    num_ridge_lasso_lambdas = 3
+    lasso_lambdas = np.logspace(-4, 4, num_ridge_lasso_lambdas)
 
 
 Results = {
-    'Elastic_Net': 
-        {'lambdas': elasticnet_lambdas,
-        'alphas': elasticnet_alphas, 
-        'Result': np.zeros((5, 3))}, # lambda, alpha, rmse (for each fold)
-           }
+    'Lasso': {
+        'lambdas': lasso_lambdas
+        'Results': np.zeros((K, 2))
+    }
+}
 
 # ---------------------- Model --------------------------------
 
-elastic_net = ElasticNetCV(l1_ratio = elasticnet_alphas, alphas = elasticnet_lambdas, fit_intercept=False, random_state=6)
+model = LassoCV(alphas, fit_intercept=False, random_state=6)
 
 
 
@@ -82,12 +76,12 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
     X_train = clf.transform(X_train_initial)
     X_validation = clf.transform(X_validation)
     
-    with warnings.catch_warnings(): # convergence warnings
-        warnings.simplefilter("ignore")
-        elastic_net.fit(X_train, y_train)
-    y_pred = elastic_net.predict(X_validation)
+    y_pred = model.predict(X_validation)
     rmse = mean_squared_error(y_validation, y_pred, squared=False)
-    Results['Elastic_Net']["Result"][fold_index] = np.array([elastic_net.alpha_, elastic_net.l1_ratio_, rmse])
+    Results['Elastic_Net']["Result"][fold_index] = np.array([model.alpha_, rmse])
+    
+    
+    
     
     
     
@@ -96,8 +90,6 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
 # 2. add bootstrap + get epe - save EPE
 # 3. find lambda* and alpha* by gridsearch (non-nested cv)
 # 4. retrain on all data and save predictions
-
-    
     
 
     
