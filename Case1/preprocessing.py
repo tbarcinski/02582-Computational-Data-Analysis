@@ -16,7 +16,7 @@ numeric_transformer = Pipeline(
     steps=[
         ("imputer", KNNImputer()),
         ("scaler", StandardScaler(with_std=True, with_mean=True)),
-        ("feature_extration", PolynomialFeatures(degree=2, interaction_only = True))
+        #("feature_extration", PolynomialFeatures(degree=2, interaction_only = True))
     ]
 )
 
