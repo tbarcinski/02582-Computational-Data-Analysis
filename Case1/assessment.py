@@ -100,22 +100,6 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
     Results['Lasso']["RMSE_CV"][fold_index] = np.array([model_epe.alpha_, rmse])
     
 save_epe(Results)
-    
-# -------------------- Bootstrap -----------------------------------------------
-"""
-for bs_index in range(K):
-    print("Bootstrap:", bs_index)
-    validation_index = resample(np.arange(N), n_samples = N//K, random_state=6)
-    train_index = np.array(set(np.arange(N)) - set(validation_index))
-    print(validation_index)
-    X_train, X_validation, y_train, y_validation = get_train_valid_split(df, train_index, validation_index)
-    model_epe.fit(X_train, y_train)
-    y_pred = model_epe.predict(X_validation)
-    rmse = mean_squared_error(y_validation, y_pred, squared=False)
-    Results['Lasso']["RMSE_BS"][fold_index] = np.array([model_epe.alpha_, rmse])
-    
-save_epe(Results)
-"""
 
 # ------------------------------ final model ----------------------------------------
 for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
@@ -130,7 +114,6 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
         Results['Lasso']["RMSE_tuning"][fold_index, j] = np.array([rmse])
 
 save_epe(Results)
-
 
 # ----------------------------- retrain and get preds --------------------------------------
 

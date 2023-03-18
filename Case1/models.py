@@ -79,7 +79,7 @@ if not test:
     highest_knn_k -1
 
     max_depth_GradientBoost = np.array([2, 3, 5, 10, 25])
-    number_trees_GradientBoost = np.arange(5, 100, 10)
+    number_trees_GradientBoost = np.arange(5, 100, 20)
     learning_rate_GradientBoost = np.array([0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3])
 
     noise_features_number = 5
@@ -198,6 +198,8 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
     
     clf.fit(pd.concat((X_train_initial, X_new), axis=0))
     X_train = clf.transform(X_train_initial)
+    print("xtrain 0", X_train[0])
+    print("xtrain shape", X_train.shape)
     X_validation = clf.transform(X_validation) # note lack of fit
 
     # ----------OLS--------------

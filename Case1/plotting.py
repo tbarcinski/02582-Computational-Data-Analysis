@@ -88,12 +88,14 @@ def plot_cross_val(Results, show=True, save=True, save_file="cross_validation.pn
     plt.xlabel("Folds")
     plt.xticks(np.arange(K))
     plt.ylabel("RMSE")
-    plt.legend(loc='upper right', bbox_to_anchor=(1.7, 1))
+    lgd = plt.legend(loc='upper right', bbox_to_anchor=(1.7, 1))
+    print(lgd)
     
+
+    if save:
+        plt.savefig(f"figures/{save_file}",  bbox_extra_artists=(lgd,), bbox_inches='tight')
     if show:
         plt.show()
-    if save:
-        plt.savefig(f"figures/{save_file}")
         
         
 def plot_method_cv(Results, method, param, show=True, save=True, save_file=None):
