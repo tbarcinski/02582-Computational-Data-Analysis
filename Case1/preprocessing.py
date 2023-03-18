@@ -15,7 +15,15 @@ CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 numeric_transformer = Pipeline(
     steps=[
         ("imputer", KNNImputer()),
-        ("scaler", StandardScaler(with_std=True, with_mean=True))
+        ("scaler", StandardScaler(with_std=True, with_mean=True)),
+        ("feature_extration", PolynomialFeatures(degree=2, interaction_only = True))
+    ]
+)
+
+numeric_transformer_trees = Pipeline(
+    steps=[
+        ("imputer", KNNImputer()),
+        ("scaler", StandardScaler(with_std=True, with_mean=True)),
     ]
 )
 
@@ -38,10 +46,12 @@ preprocessor = ColumnTransformer(
 )
 preprocessor_trees = ColumnTransformer(
     transformers=[
-        ("num", numeric_transformer, CONTINUOUS),
+        ("num", numeric_transformer_trees, CONTINUOUS),
         ("cat", categorical_transformer_trees, CATEGORICAL),
     ]
 )
-clf = Pipeline(steps=[("preprocessor", preprocessor), ("feature_extration", PolynomialFeatures(degree=2, interaction_only = True, include_bias=False))])
+
+
+clf = Pipeline(steps=[("preprocessor", preprocessor)])
 clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 
