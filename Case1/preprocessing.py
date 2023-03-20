@@ -8,6 +8,8 @@ import pandas as pd
 
 # %%
 df = pd.read_csv("case1Data.txt", sep=', ')
+df_new = pd.read_csv("case1Data_Xnew.txt", sep=', ', engine='python')
+
 df.columns = [c.replace(' ', '') for c in df.columns]
 CATEGORICAL = [c for c in df.columns if c.startswith("C")]
 CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
@@ -15,15 +17,7 @@ CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 numeric_transformer = Pipeline(
     steps=[
         ("imputer", KNNImputer()),
-        ("scaler", StandardScaler(with_std=True, with_mean=True)),
-        ("feature_extration", PolynomialFeatures(degree=1, include_bias=True))
-    ]
-)
-
-numeric_transformer_trees = Pipeline(
-    steps=[
-        ("imputer", KNNImputer()),
-        ("scaler", StandardScaler(with_std=True, with_mean=True)),
+        ("scaler", StandardScaler(with_std=True, with_mean=True))
     ]
 )
 
@@ -46,12 +40,11 @@ preprocessor = ColumnTransformer(
 )
 preprocessor_trees = ColumnTransformer(
     transformers=[
-        ("num", numeric_transformer_trees, CONTINUOUS),
+        ("num", numeric_transformer, CONTINUOUS),
         ("cat", categorical_transformer_trees, CATEGORICAL),
     ]
 )
-
-
-clf = Pipeline(steps=[("preprocessor", preprocessor)])
+clf = Pipeline(steps=[("preprocessor", preprocessor),
+                      ("feature_extration", PolynomialFeatures(degree=2, interaction_only = True, include_bias=False))])
 clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 

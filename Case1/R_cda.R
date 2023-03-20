@@ -18,7 +18,7 @@ library(patchwork)
 #####################3333
 df <- read.table("preprocessed_data/df_imputed_train.csv", sep=",", header=TRUE)
 df <- data.frame(df)
-X = as.matrix(df[, 2:(dim(df)[2] - 1)])
+X = as.matrix(df[, 3:(dim(df)[2] - 1)])
 y = df[, "y"]
 
 
@@ -186,16 +186,16 @@ cv_default <- cv.glmnet(X, y, nlambda = 200, alpha = 1,
 cv_default
 
 ############## repeated cross validation - scheme
-df <- data.frame(df)
-yourdata <- df[sample(nrow(df)),]
+df_nestedcross <- data.frame(df[, 2:118], y= df[, "y"])
+yourdata <- df_nestedcross[sample(nrow(df_nestedcross)),]
 
-folds_number = 10
+folds_number = 20
 repeated_number = 1
-nlambda = 200
+nlambda = 300
 # inner_fold = 10
 
 folds <- cut(seq(1,nrow(yourdata)),breaks=folds_number,labels=FALSE)
-rmse_list <- array(NA, dim = c(repeated_number, folds_number, 2))
+rmse_list <- array(NA, dim = c(repeated_number, folds_number, 3))
 final_results <- array(NA, dim=c(repeated_number, nlambda, folds_number, 3))
 
 for(index in 1:repeated_number){
@@ -314,15 +314,59 @@ cv_original <- cv.glmnet(X_small, y_centered, nlambda = 300, alpha = 1,
                        type.measure = "mse", nfolds = nrow(X_small),
                        intercept = FALSE)
 cv_original
+plot(cv_original)
+
+############################################################
+cv_fit <- cv.glmnet(X_small, y_centered, nlambda = 300, alpha = 1,
+                         type.measure = "mse", nfolds = 10,
+                         intercept = FALSE)
+cv_fit
+
+repeated_cv_final = 10
+lambdas_final = array(NA, dim = c(repeated_cv_final, 2))
+for (i in 1:repeated_cv_final){
+  print(i)
+  cv_fit_intercept <- cv.glmnet(X, y, nlambda = 300, alpha = 1,
+                                type.measure = "mse", nfolds = 10)
+  lambdas_final[i, 1] = cv_fit_intercept$lambda.min
+  lambdas_final[i, 2] = cv_fit_intercept$lambda.1se
+}
+
+cv_fit_intercept
+
+par(mfrow = c(1, 1))
+hist(lambdas_final[, 1])
+
+# plot(cv_fit)
+# 
+# predict.glmnet
+# 
+# cv_fit <- cv.glmnet(X_small, y_centered, nlambda = 300, alpha = 1,
+#                     type.measure = "mse", nfolds = 20,
+#                     intercept = FALSE)
+# cv_fit
+# plot(cv_fit)
+
 #### this gives consistent results !!!!!
-
-
-fit <- glmnet(X, y, lambda = cv_simple$lambda.min)
-fitted_values <- predict(fit, X, s = 'lambda.min')
-
-coeficients <- as.matrix(coef(cv_simple, s = "lambda.min"))
+coeficients <- as.matrix(coef(cv_fit, s = "lambda.min"))
 dataframe <- data.frame(coeficients) 
 dataframe %>% filter(s1 > 0) %>% arrange(desc(s1))
+
+
+
+fit <- glmnet(X_small, y, lambda = mean(lambdas_final[, 1]))
+fit
+plot(fit)
+
+options(scipen=999)
+coeficients <- as.matrix(coef(fit))
+dataframe <- data.frame(coeficients) 
+dataframe %>% filter(s0 > 0) %>% arrange(desc(s0)) %>% round(., 4)
+                         
+                      
+
+
+
 
 residuals <- y - fitted_values
 plot(residuals)
@@ -344,8 +388,29 @@ cv_no_interactions
 
 colnames(X)
 
-
 summary(fit)
 print(fit)
+
+########################################################################
+### predictions
+
+df_test <- read.table("preprocessed_data/df_imputed_test.csv", sep=",", header=TRUE)
+df_test <- as.matrix(data.frame(df_test[, 3:dim(df_test)[2]]))
+
+predictions <- predict(fit, df_test)
+write(predictions, "myFile.txt", ncolumns = 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
