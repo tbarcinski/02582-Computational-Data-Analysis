@@ -162,7 +162,6 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
 
 save_epe(Results)
 
-
 # ----------------------------- retrain and get preds --------------------------------------
 
 # get best (could also be one std error rule)
