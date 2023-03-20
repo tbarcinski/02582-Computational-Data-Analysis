@@ -1,3 +1,4 @@
+# %%
 import datetime as dt
 import time
 import pickle
@@ -9,6 +10,8 @@ from sklearn.linear_model import ElasticNetCV, LassoCV, LassoLars
 from sklearn.model_selection import KFold
 from sklearn.utils import resample
 from preprocessing import *
+from mlxtend.evaluate import BootstrapOutOfBag
+
 time_now = dt.datetime.now()
 test = True
 
@@ -39,6 +42,7 @@ def get_train_valid_split(df, train_index, validation_index):
     
 # ----------------- Read data-------------------------------
 
+# %%
 df = pd.read_csv("case1Data.txt", sep=', ', engine='python')
 df.columns = [c.replace(' ', '') for c in df.columns]
 
@@ -86,8 +90,6 @@ Results = {
 model_epe = LassoCV(alphas=lasso_lambdas, fit_intercept=False, random_state=6)
 model_final = LassoLars(fit_intercept=False)
 
-
-
 kf = KFold(n_splits=K, random_state=42, shuffle=True)
 
 for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
@@ -102,20 +104,49 @@ for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
 save_epe(Results)
     
 # -------------------- Bootstrap -----------------------------------------------
-"""
-for bs_index in range(K):
-    print("Bootstrap:", bs_index)
-    validation_index = resample(np.arange(N), n_samples = N//K, random_state=6)
-    train_index = np.array(set(np.arange(N)) - set(validation_index))
-    print(validation_index)
-    X_train, X_validation, y_train, y_validation = get_train_valid_split(df, train_index, validation_index)
-    model_epe.fit(X_train, y_train)
-    y_pred = model_epe.predict(X_validation)
-    rmse = mean_squared_error(y_validation, y_pred, squared=False)
-    Results['Lasso']["RMSE_BS"][fold_index] = np.array([model_epe.alpha_, rmse])
+
+# for bs_index in range(K):
+#     print("Bootstrap:", bs_index)
+#     validation_index = resample(np.arange(N), n_samples = N//K, random_state=6)
+#     train_index = np.array(set(np.arange(N)) - set(validation_index))
+#     print(validation_index)
+#     X_train, X_validation, y_train, y_validation = get_train_valid_split(df, train_index, validation_index)
+#     model_epe.fit(X_train, y_train)
+#     y_pred = model_epe.predict(X_validation)
+#     rmse = mean_squared_error(y_validation, y_pred, squared=False)
+#     Results['Lasso']["RMSE_BS"][fold_index] = np.array([model_epe.alpha_, rmse])
     
-save_epe(Results)
-"""
+# save_epe(Results)
+
+
+# %%
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import cross_val_score
+
+X = df.iloc[:, df.columns != "y"]
+clf.fit(pd.concat((X, df_new), axis=0))
+X = clf.transform(X)
+y = df.y.values
+
+# %%
+model = Lasso(alpha = 2.11)
+
+print(np.sqrt(-cross_val_score(model, X, y, scoring='neg_mean_squared_error')))
+
+# %%
+results_boostrap = np.sqrt(-cross_val_score(model, X, y, cv=BootstrapOutOfBag(n_splits=100, random_seed=456),
+                                            scoring='neg_mean_squared_error'))
+# %%
+print(results_boostrap)
+print(np.mean(results_boostrap))
+
+# %%
+print('Mean accuracy: %.1f%%' % np.mean(100*cross_val_score(
+    model, X, y, cv=BootstrapOutOfBag(n_splits=200, random_seed=456))))
+
+# %%
+
+# %%
 
 # ------------------------------ final model ----------------------------------------
 for fold_index, (train_index, validation_index) in enumerate(kf.split(df)):
@@ -149,7 +180,7 @@ clf.fit(pd.concat((X, X_new), axis=0))
 X = clf.transform(X)
 X_new = clf.transform(X_new)
 
-model_final.set_params(alpha= best_lambda)
+model_final.set_params(alpha = best_lambda)
 model_final.fit(X, y)
 
 y_pred = model_final.predict(X_new)
