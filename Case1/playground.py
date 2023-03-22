@@ -376,57 +376,133 @@ preprocessor_trees = ColumnTransformer(
 clf = Pipeline(steps=[("preprocessor", preprocessor)])
 clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
 
-X_train_initial = df_train.iloc[:, df_train.columns != "y"]
-X_validation = df_validation.iloc[:, df_validation.columns != "y"]
+# %%
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, PolynomialFeatures
+from sklearn.pipeline import make_pipeline, Pipeline
+from sklearn.compose import ColumnTransformer
+import numpy as np
+import pandas as pd
 
-y_train = df_train.y.values
-y_validation = df_validation.y.values
+df = pd.read_csv("case1Data.txt", sep=', ')
+df.columns = [c.replace(' ', '') for c in df.columns]
+df_new = pd.read_csv("case1Data_Xnew.txt", sep=', ')
+df_new.columns = [c.replace(' ', '') for c in df_new.columns]
 
-X_train_trees = clf_trees.fit_transform(X_train_initial)
-X_validation_trees = clf_trees.transform(X_validation) # note lack of fit
+CATEGORICAL = [c for c in df.columns if c.startswith("C")]
+CONTINUOUS  = [x for x in df.columns if x.startswith("x")]
 
-X_train = clf.fit_transform(X_train_initial)
-X_validation = clf.transform(X_validation) # note lack of fit
+numeric_transformer = Pipeline(
+    steps=[
+        ("imputer", KNNImputer()),
+        ("scaler", StandardScaler(with_std=True, with_mean=True)),
+        ("feature_extration", PolynomialFeatures(degree=1, include_bias=True))
+    ]
+)
 
-# h2o.init()
+numeric_transformer_trees = Pipeline(
+    steps=[
+        ("imputer", KNNImputer()),
+        ("scaler", StandardScaler(with_std=True, with_mean=True)),
+    ]
+)
 
-df_h2o = pd.DataFrame(X_train_trees, columns=X_train_initial.columns)
-df_h2o['y'] = y_train
-df_h2o_validation = pd.DataFrame(X_validation_trees,
-                                            columns=X_train_initial.columns)
-df_h2o_validation['y'] = y_validation
+categorical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy='most_frequent')),
+        ("encoder", OneHotEncoder(handle_unknown="ignore")),
+    ]
+)
+categorical_transformer_trees = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy='constant', fill_value='missing')),
+    ]
+)
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, CONTINUOUS),
+        ("cat", categorical_transformer, CATEGORICAL),
+    ]
+)
+preprocessor_trees = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer_trees, CONTINUOUS),
+        ("cat", categorical_transformer_trees, CATEGORICAL),
+    ]
+)
+
+clf = Pipeline(steps=[("preprocessor", preprocessor)])
+clf_trees = Pipeline(steps=[("preprocessor", preprocessor_trees)])
+
+X_df = pd.concat([df.iloc[:, df.columns != "y"], df_new])
+X_imputed = clf.fit_transform(X_df)
+
+X_imputed_train = np.hstack((X_imputed[0:100, :], df.y.values[:, None]))
+df_imputed_train = pd.DataFrame(X_imputed_train,
+                                columns = np.hstack((clf.get_feature_names_out(), "y")))
+df_imputed_test = pd.DataFrame(X_imputed[100:, :], 
+                              columns = clf.get_feature_names_out())
+
+# %%
+# X_train_initial = df_train.iloc[:, df_train.columns != "y"]
+# X_validation = df_validation.iloc[:, df_validation.columns != "y"]
+
+# y_train = df_train.y.values
+# y_validation = df_validation.y.values
+
+X_train_trees = clf_trees.fit_transform(X_df)
+# X_validation_trees = clf_trees.transform(X_validation) # note lack of fit
+
+# X_train = clf.fit_transform(X_train_initial)
+# X_validation = clf.transform(X_validation) # note lack of fit
+
+# %%
+h2o.init()
+
+# %%
+df_h2o = pd.DataFrame(X_train_trees[0:100, :], columns=df_new.columns)
+df_h2o['y'] = y
+# df_h2o_validation = pd.DataFrame(X_validation_trees,
+#                                             columns=X_train_initial.columns)
+# df_h2o_validation['y'] = y_validation
 
 # noise_names = ["noise_" + str(i) for i in range(noise_features_number)]
 
-# noise = noise_variance*np.random.randn(noise_features_number, df_h2o.shape[0]).T
-# df_h2o[noise_names] = noise
 
 # noise_validation = noise_variance*np.random.randn(noise_features_number, df_h2o.shape[0]).T
 # df_h2o_validation[noise_names] = noise_validation
 
 df_h2o = H2OFrame(df_h2o)
-df_h2o_validation = H2OFrame(df_h2o_validation)
-columns_h2o = [column for column in df_h2o.columns if column != "y"]
-
-
-# %%
-h2o.init()
-df_h2o = H2OFrame(df_trees)
-df_h2o_test = H2OFrame(df_trees_test)
-noise_features_number = 5
 columns_h2o = [column for column in df_h2o.columns if column != "y"]
 
 # %%
 
-noise_names = ["noise_" + str(i) for i in range(noise_features_number)]
-gbm = H2OGradientBoostingEstimator()
-gbm.set_params(ntrees = 5, max_depth = 2, learn_rate = 0.5)
+
+# df_h2o = H2OFrame(df_trees)
+# df_h2o_test = H2OFrame(df_trees_test)
+# 
+# columns_h2o = [column for column in df_h2o.columns if column != "y"]
+
+# %%
+
+# noise_features_number = 10
+# noise_variance = 1
+
+# noise_names = ["noise_" + str(i) for i in range(noise_features_number)]
+# noise = noise_variance*np.random.randn(noise_features_number, df_h2o.shape[0]).T
+# df_h2o[noise_names] = noise
+
+df_h2o_train = df_h2o[0:80, :]
+df_h2o_test = df_h2o[80:100, :]
+
+gbm = H2OGradientBoostingEstimator(ntrees=100, max_depth=10)
 gbm.train(x = columns_h2o, y = "y",
                training_frame = df_h2o)
 
 # %%
-y_pred = gbm.predict(df_h2o_validation).as_data_frame().to_numpy().squeeze()
-print(mean_squared_error(y_validation, y_pred, squared=False))
+y_pred = gbm.predict(df_h2o_test).as_data_frame().to_numpy().squeeze()
+print(mean_squared_error(df_h2o_test[:, "y"].as_data_frame().to_numpy().squeeze(),
+    y_pred, squared=False))
 
 # %%
 var_importance = gbm.varimp(use_pandas=True)
