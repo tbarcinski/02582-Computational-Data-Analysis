@@ -1,4 +1,4 @@
 # Case 1
-in progress
+done
 # Case 2
-not in progress
+in progress
