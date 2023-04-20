@@ -335,7 +335,7 @@ for (i in 1:repeated_cv_final){
 cv_fit_intercept
 
 par(mfrow = c(1, 1))
-hist(lambdas_final[, 1])
+hist(lambdas_final[, 1], breaks = 20)
 
 # plot(cv_fit)
 # 
@@ -357,6 +357,10 @@ dataframe %>% filter(s1 > 0) %>% arrange(desc(s1))
 fit <- glmnet(X_small, y, lambda = mean(lambdas_final[, 1]))
 fit
 plot(fit)
+
+residuals <- y - predict(fit, X_small)
+plot(residuals)
+
 
 options(scipen=999)
 coeficients <- as.matrix(coef(fit))
